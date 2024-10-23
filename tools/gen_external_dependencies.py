@@ -6,42 +6,20 @@ import subprocess
 import sys
 from pathlib import Path
 
+import click
 
-def main() -> int:
+@click.command(help=__doc__)
+@click.option("--empty-requirement",default="No", help="Can have a empty file requiement.txt")
+def main(empty_requirement) -> int:
     if sys.version_info < (3, 7):
         raise SystemExit("Python 3.7+ is required.")
 
-    projects = [
-        *Path.glob(Path.cwd(), "*/pyproject.toml"),
-        *Path.glob(Path.cwd(), "setup/*/setup.py"),
-    ]
-
-    if not projects:
-        return 1
-
-    env = os.environ.copy()
-    env.update(
-        {
-            # for better performance, since we are not interested in precise versions
-            "WHOOL_POST_VERSION_STRATEGY_OVERRIDE": "none",
-            "SETUPTOOLS_ODOO_POST_VERSION_STRATEGY_OVERRIDE": "none",
-        }
-    )
+    command = ["manifestoo", "-d", ".", "--exclude-core-addons", "list-external-dependencies", "python"]
 
     result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "pyproject_dependencies",
-            "--no-isolation",  # whool and setuptools Odoo must be preinstalled
-            "--ignore-build-errors",  # ignore uninstallable addons
-            "--name-filter",
-            r"^(odoo$|odoo\d*-addon-)",  # filter out odoo and odoo addons
-            *projects,
-        ],
-        env=env,
+        command,
         check=False,
-        stdout=subprocess.PIPE,
+        capture_output=True,
         text=True,
     )
 
@@ -55,9 +33,9 @@ def main() -> int:
         with requirements_path.open("w") as f:
             f.write("# generated from manifests external_dependencies\n")
             f.write(requirements)
-    else:
-        if requirements_path.exists():
-            requirements_path.unlink()
+
+    if requirements_path.exists() and empty_requirement == "No":
+        requirements_path.unlink()
 
     return 0
 
