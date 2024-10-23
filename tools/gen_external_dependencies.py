@@ -6,8 +6,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+import click
 
-def main() -> int:
+@click.command(help=__doc__)
+@click.option("--empty-requirement",default="No", help="Can have a empty file requiement.txt")
+def main(empty_requirement) -> int:
     if sys.version_info < (3, 7):
         raise SystemExit("Python 3.7+ is required.")
 
@@ -16,8 +19,8 @@ def main() -> int:
         *Path.glob(Path.cwd(), "setup/*/setup.py"),
     ]
 
-    if not projects:
-        return 1
+    # if not projects:
+    #     return 1
 
     env = os.environ.copy()
     env.update(
@@ -45,6 +48,12 @@ def main() -> int:
         text=True,
     )
 
+    with open("test.md","w") as f:
+        f.write("# Test of hook\n")
+        f.write(f'{Path("requirements.txt")} -- {Path("requirements.txt").exists()} -- {empty_requirement}\n')
+        f.write(f"projects: {projects}\n")    
+        f.write(f"result: {result.stdout}\n")    
+
     if result.returncode != 0:
         return result.returncode
 
@@ -55,9 +64,9 @@ def main() -> int:
         with requirements_path.open("w") as f:
             f.write("# generated from manifests external_dependencies\n")
             f.write(requirements)
-    else:
-        if requirements_path.exists():
-            requirements_path.unlink()
+
+    if requirements_path.exists() and empty_requirement == "No":
+        requirements_path.unlink()
 
     return 0
 
